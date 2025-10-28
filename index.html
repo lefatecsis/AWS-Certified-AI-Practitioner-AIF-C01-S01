@@ -23,7 +23,6 @@
       background-color: #f8d7da !important;
       color: #721c24 !important;
       border-color: #f5c6cb !important;
-      transition: all 0.3s ease;
     }
 
     /* Estilo alternativo mais específico */
@@ -192,19 +191,23 @@
           // Remove classes anteriores de todas as opções
           const allLabels = questionCard.querySelectorAll('.list-group-item');
           allLabels.forEach(l => {
-            l.classList.remove('list-group-item-success', 'list-group-item-danger', 'resposta-correta');
+            l.classList.remove('list-group-item-success', 'list-group-item-danger', 'resposta-correta', 'bg-success', 'bg-danger', 'text-white');
           });
 
           // Sempre pinta a resposta correta de verde
           const correctLabel = questionCard.querySelector('.list-group-item[data-correct="true"]');
           if (correctLabel) {
-            correctLabel.classList.add('list-group-item-success');
-            correctLabel.classList.add('resposta-correta');
+            correctLabel.classList.add('bg-success', 'text-white');
           }
 
           // Verifica se a resposta selecionada está correta
           const selectedLabel = e.target.closest('.list-group-item');
           const acertou = selectedLabel && selectedLabel.getAttribute('data-correct') === 'true';
+
+          // Se errou, pinta a selecionada de vermelho (além da correta em verde)
+          if (!acertou && selectedLabel) {
+            selectedLabel.classList.add('bg-danger', 'text-white');
+          }
 
           // Atualiza contador apenas se não foi respondida antes
           if (!jaRespondida) {
