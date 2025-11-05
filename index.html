@@ -236,6 +236,20 @@
         }
       });
     });
+    function logQuestoesEmHorarios() {
+      const agora = new Date();
+      const hora = agora.getHours();
+
+      if (hora === 6 || hora === 18) {
+        console.log('Log das questões às ' + hora + 'h:');
+        fetchQuestoes().then(questoes => {
+          console.log('Total de questões:', questoes.length);
+        });
+      }
+    }
+
+    logQuestoesEmHorarios();
+    setInterval(logQuestoesEmHorarios, 3600000);  
   </script>
 </body>
 
