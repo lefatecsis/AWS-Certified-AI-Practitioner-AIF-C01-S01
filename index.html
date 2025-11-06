@@ -52,6 +52,26 @@
 </head>
 
 <body>
+  <!-- Navbar -->
+  <nav class="navbar navbar-dark bg-dark">
+    <div class="container">
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"
+        aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="navbarNav">
+        <ul class="navbar-nav">
+          <li class="nav-item">
+            <a class="nav-link active" href="#" data-simulado="1">Simulado 1</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="#" data-simulado="2">Simulado 2</a>
+          </li>        
+        </ul>
+      </div>
+      <a class="navbar-brand" href="#">AWS AI Practitioner</a>
+    </div>
+  </nav>
   <div class="container my-5">
     <div class="text-center mb-4">
       <h1 class="display-5">Simulado AWS AI Practitioner</h1>
@@ -76,10 +96,11 @@
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
   <script>
     document.addEventListener('DOMContentLoaded', async function () {
+      let questoes = [];
       // Função para buscar questões da API
-      async function fetchQuestoes() {
+      async function fetchQuestoes(simuladoId = 1) {
         try {
-          const response = await fetch('https://xycawmzzmqmjeuqwhxva.supabase.co/rest/v1/questoes_aws_ai?select=*&order=numero_questao.asc&apikey=sb_publishable_BnAyJzAgHp9ebQ9f9G63pg_kXygu9Ex');
+          const response = await fetch(`https://xycawmzzmqmjeuqwhxva.supabase.co/rest/v1/questoes_aws_ai?select=*&order=numero_questao.asc&id_simulado=eq.${simuladoId}&apikey=sb_publishable_BnAyJzAgHp9ebQ9f9G63pg_kXygu9Ex`);
           const questoes = await response.json();
           return questoes;
         } catch (error) {
@@ -92,6 +113,21 @@
       function generateQuestionHTML(questao) {
         const correctKey = String(questao.resposta_correta || '').trim().toUpperCase();
 
+        // Processa múltiplas respostas corretas (ex: "B - D", "DB", "B e D")
+        let correctAnswers = [];
+        if (correctKey.includes(' - ')) {
+          // Formato "B - D"
+          correctAnswers = correctKey.split(' - ').map(answer => answer.trim());
+        } else if (correctKey.includes(' E ')) {
+          // Formato "B E D"
+          correctAnswers = correctKey.split(' E ').map(answer => answer.trim());
+        } else if (correctKey.length > 1 && !correctKey.includes(' ')) {
+          // Formato "BD" (letras juntas)
+          correctAnswers = correctKey.split('');
+        } else {
+          // Resposta única
+          correctAnswers = [correctKey];
+        }
         // Verifica se opcoes é array ou objeto
         let options;
         if (Array.isArray(questao.opcoes)) {
@@ -99,7 +135,7 @@
           options = questao.opcoes.map((opcaoCompleta, index) => {
             // Extrai a letra do início da string (ex: "A. texto" -> "A")
             const letra = opcaoCompleta.charAt(0).toUpperCase();
-            const isCorrect = letra === correctKey;
+            const isCorrect = correctAnswers.includes(letra);
             return `
               <label class="d-flex align-items-center mb-0 form-check list-group-item" data-correct="${isCorrect ? 'true' : 'false'}" data-option="${letra}">
                 <input class="form-check-input me-2" name="q_${questao.numero_questao}" type="radio" value="${letra}" data-option="${letra}" />
@@ -111,7 +147,7 @@
           // Se for objeto, usa a lógica original
           options = Object.entries(questao.opcoes || {}).map(([letra, texto]) => {
             const key = String(letra || '').trim().toUpperCase();
-            const isCorrect = key === correctKey;
+            const isCorrect = correctAnswers.includes(key);
             return `
               <label class="d-flex align-items-center mb-0 form-check list-group-item" data-correct="${isCorrect ? 'true' : 'false'}" data-option="${key}">
                 <input class="form-check-input me-2" name="q_${questao.numero_questao}" type="radio" value="${key}" data-option="${key}" />
@@ -145,16 +181,47 @@
           </div>
         `;
       }
+      document.querySelectorAll('.nav-link').forEach(link => {
+        link.addEventListener('click', async function (e) {
+          e.preventDefault();
+
+          // Remove active class from all links
+          document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+
+          // Add active class to clicked link
+          this.classList.add('active');
+
+          // Get simulado ID from data attribute
+          const simuladoId = this.getAttribute('data-simulado');
+
+          // Update global questoes with new simulado
+          questoes = await fetchQuestoes(simuladoId);
+
+          // Reset counters
+          acertos = 0;
+          totalRespondidas = 0;
+
+          // Update the quiz content
+          quizAccordion.innerHTML = questoes.map(questao => generateQuestionHTML(questao)).join('');
+
+          // Update total questions for counter
+          totalQuestoes = questoes.length;
+
+          // Reset counter display
+          atualizarContador();
+        });
+      });
       // Carregar e renderizar questões
-      const questoes = await fetchQuestoes();
+      questoes = await fetchQuestoes(1);
       const quizAccordion = document.getElementById('quizAccordion');
       quizAccordion.innerHTML = questoes.map(questao => generateQuestionHTML(questao)).join('');
 
-      // Variáveis para controle de pontuação
+      // Update variables for counter
       let acertos = 0;
       let totalRespondidas = 0;
-      const totalQuestoes = questoes.length;
+      let totalQuestoes = questoes.length;
       const contadorElement = document.getElementById('contadorPontuacao');
+
 
       // Função para atualizar contador
       function atualizarContador() {
@@ -163,6 +230,15 @@
 
       // Inicializa contador
       atualizarContador();
+
+      // Recolhe o menu navbar quando clicar em qualquer item
+      document.querySelectorAll('.navbar-nav .nav-link').forEach(link => {
+        link.addEventListener('click', function () {
+          const navbarCollapse = document.getElementById('navbarNav');
+          const bsCollapse = new bootstrap.Collapse(navbarCollapse, { toggle: false });
+          bsCollapse.hide();
+        });
+      });
 
       // Expandir/Recolher todas as questões
       document.getElementById('expandirTodos').addEventListener('click', () => {
@@ -185,71 +261,58 @@
           const questionCard = e.target.closest('.question-card');
           if (!questionCard) return;
 
-          // Verifica se esta questão já foi respondida antes
           const jaRespondida = questionCard.hasAttribute('data-respondida');
+          const allLabels = questionCard.querySelectorAll('.list-group-item');
 
           // Remove classes anteriores de todas as opções
-          const allLabels = questionCard.querySelectorAll('.list-group-item');
           allLabels.forEach(l => {
             l.classList.remove('list-group-item-success', 'list-group-item-danger', 'resposta-correta', 'bg-success', 'bg-danger', 'text-white');
           });
 
-          // Sempre pinta a resposta correta de verde
-          const correctLabel = questionCard.querySelector('.list-group-item[data-correct="true"]');
-          if (correctLabel) {
-            correctLabel.classList.add('bg-success', 'text-white');
-          }
+          // Pinta TODAS as respostas corretas de verde
+          const correctLabels = questionCard.querySelectorAll('.list-group-item[data-correct="true"]');
+          correctLabels.forEach(label => {
+            label.classList.add('bg-success', 'text-white');
+          });
 
           // Verifica se a resposta selecionada está correta
           const selectedLabel = e.target.closest('.list-group-item');
           const acertou = selectedLabel && selectedLabel.getAttribute('data-correct') === 'true';
 
-          // Se errou, pinta a selecionada de vermelho (além da correta em verde)
+          // Se errou, pinta a selecionada de vermelho (além das corretas em verde)
           if (!acertou && selectedLabel) {
             selectedLabel.classList.add('bg-danger', 'text-white');
-          }
-
-          // Atualiza contador apenas se não foi respondida antes
-          if (!jaRespondida) {
-            if (acertou) {
-              acertos++;
-            }
-            totalRespondidas++;
-            questionCard.setAttribute('data-respondida', 'true');
-            questionCard.setAttribute('data-acertou', acertou ? 'true' : 'false');
-            atualizarContador();
-          } else {
-            // Se já foi respondida, ajusta o contador baseado na nova resposta
-            const acertouAntes = questionCard.getAttribute('data-acertou') === 'true';
-            if (acertouAntes && !acertou) {
-              acertos--; // Estava certo, agora errou
-            } else if (!acertouAntes && acertou) {
-              acertos++; // Estava errado, agora acertou
-            }
-            questionCard.setAttribute('data-acertou', acertou ? 'true' : 'false');
-            atualizarContador();
           }
 
           // Mostra a explicação
           const explanationElements = questionCard.querySelectorAll('.explicacao-hidden');
           explanationElements.forEach(el => el.classList.remove('explicacao-hidden'));
+
+          // Atualiza o contador apenas se a questão não foi respondida antes
+          if (!jaRespondida) {
+            if (acertou) acertos++;
+            totalRespondidas++;
+            questionCard.setAttribute('data-respondida', 'true');
+            atualizarContador();
+          }
         }
       });
-    });
-    function logQuestoesEmHorarios() {
-      const agora = new Date();
-      const hora = agora.getHours();
+      function logQuestoesEmHorarios() {
+        const agora = new Date();
+        const hora = agora.getHours();
 
-      if (hora === 6 || hora === 18) {
-        console.log('Log das questões às ' + hora + 'h:');
-        fetchQuestoes().then(questoes => {
-          console.log('Total de questões:', questoes.length);
-        });
+        if (hora === 6 || hora === 18) {
+          console.log('Log das questões às ' + hora + 'h:');
+          fetchQuestoes().then(questoes => {
+            console.log('Total de questões:', questoes.length);
+            console.log('Questões:', questoes);
+          });
+        }
       }
-    }
 
-    logQuestoesEmHorarios();
-    setInterval(logQuestoesEmHorarios, 3600000);  
+      logQuestoesEmHorarios();
+      setInterval(logQuestoesEmHorarios, 3600000);
+    }); // Closing DOMContentLoaded
   </script>
 </body>
 
